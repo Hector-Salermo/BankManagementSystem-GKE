@@ -1,0 +1,160 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+spec:
+  selector:
+    app: db
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+spec:
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: db
+          image: isysterov/coe692:testdb
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: storage
+              mountPath: /data/db
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: db-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: login
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: login
+  template:
+    metadata:
+      labels:
+        app: login
+    spec:
+      containers:
+        - name: login
+          image: isysterov/coe692:loginservice
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_URL
+              value: db:3306
+            - name: kubeMQAddress
+              value: 10.3.255.183:50000
+          imagePullPolicy: Always
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: updatebalance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: updatebalance
+  template:
+    metadata:
+      labels:
+        app: updatebalance
+    spec:
+      containers:
+        - name: updatebalance
+          image: isysterov/coe692:updatebalanceservice
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_URL
+              value: db:3306
+            - name: kubeMQAddress
+              value: 10.3.255.183:50000
+          imagePullPolicy: Always
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: isysterov/coe692:frontendservice
+          ports:
+            - containerPort: 8080
+          env:
+            - name: loginService
+              value: login:80
+
+            - name: updatebalanceService
+              value: updatebalance:80
+          imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: login
+spec:
+  selector:
+    app: login
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: updatebalance
+spec:
+  selector:
+    app: updatebalance
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: LoadBalancer
