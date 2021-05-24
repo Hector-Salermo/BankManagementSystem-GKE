@@ -1,0 +1,7 @@
+com/mycompany/helper/BalanceXML.class
+com/mycompany/business/Business.class
+com/mycompany/helper/Balance.class
+com/mycompany/business/XMLParser.class
+com/mycompany/helper/User.class
+com/mycompany/frontend/FrontEnd.class
+com/mycompany/frontend/Authenticate.class
